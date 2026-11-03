@@ -361,7 +361,7 @@ async function showProps(p) {
   $('pClose').onclick = $('pOk').onclick = close;
   $('props').onmousedown = e => { if (e.target.id === 'props') close(); };
   $('pCopy').onclick = () => { fsx.copyPath(r.path); toast('Pfad kopiert'); };
-  if ($('pNative')) $('pNative').onclick = () => fsx.propsNative(r.path);
+  if ($('pNative')) $('pNative').onclick = async () => { $('pNative').disabled = true; await fsx.propsNative(r.path); toast('Windows-Eigenschaften werden geöffnet …'); setTimeout(() => { if ($('pNative')) $('pNative').disabled = false; }, 2500); };
   const apply = async ch => { try { await fsx.propsSet(r.path, ch); toast('Gespeichert'); refresh([parentOf(r.path)]); } catch (e) { toast('Fehler: ' + e.message); showProps(p); } };
   $('pRo').onchange = e => apply({ readonly: e.target.checked });
   if ($('pHid')) $('pHid').onchange = e => apply({ hidden: e.target.checked });

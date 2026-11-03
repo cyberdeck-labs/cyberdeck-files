@@ -197,13 +197,55 @@ ipcMain.handle('props-set', async (_e, p, ch) => {
   return true;
 });
 // Windows: den echten Eigenschaften-Dialog des Explorers oeffnen
+// PowerShell-Skript: oeffnet den Explorer-Dialog, haelt den Prozess am Leben solange der Dialog offen ist,
+// holt ihn nach vorne (Prozess startet versteckt -> Dialog sonst evtl. unsichtbar/hinter dem Fenster). Fehler -> %TEMP%\cyberdeck-files-props.log
+const PROPS_PS = `
+$ErrorActionPreference = 'Stop'
+$log = Join-Path $env:TEMP 'cyberdeck-files-props.log'
+try {
+  Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices; using System.Text;
+public static class CdW {
+  public delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr l);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  public static IntPtr Find(uint me) {
+    IntPtr r = IntPtr.Zero;
+    EnumWindows((h, l) => { uint p; GetWindowThreadProcessId(h, out p);
+      if (p == me) { var sb = new StringBuilder(64); GetClassName(h, sb, 64); if (sb.ToString() == "#32770") { r = h; return false; } }
+      return true; }, IntPtr.Zero);
+    return r;
+  }
+}
+'@
+  $sh = New-Object -ComObject Shell.Application
+  if ($isRoot) { $f = $sh.Namespace(17); $i = $f.ParseName($target) }
+  else { $f = $sh.Namespace($dir); if (-not $f) { throw "Ordner nicht gefunden: $dir" }; $i = $f.ParseName($name) }
+  if (-not $i) { throw "Element nicht gefunden: $target" }
+  $i.InvokeVerb('properties')
+  $me = [uint32]$PID; $seen = $false
+  for ($t = 0; $t -lt 3600; $t++) {
+    Start-Sleep -Milliseconds 500
+    $h = [CdW]::Find($me)
+    if ($h -ne [IntPtr]::Zero) { if (-not $seen) { [CdW]::ShowWindow($h, 5) | Out-Null; [CdW]::SetForegroundWindow($h) | Out-Null; $seen = $true } }
+    elseif ($seen) { break }
+    elseif ($t -gt 30) { throw "Eigenschaften-Dialog ist nicht erschienen: $target" }
+  }
+} catch { "$(Get-Date -Format s)  $_" | Out-File -Append -Encoding utf8 $log }
+`;
 ipcMain.handle('props-native', (_e, p) => {
   if (!IS_WIN) return false; p = abs(p);
-  const esc = s => s.replace(/'/g, "''");
-  const ps = `$s=New-Object -ComObject Shell.Application;$f=$s.Namespace('${esc(path.dirname(p))}');$i=$f.ParseName('${esc(path.basename(p))}');$i.InvokeVerb('properties');` +
-    `Add-Type -Name W -Namespace U -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr FindWindow(string c,string t);';` +
-    `Start-Sleep 2;$t=(Get-Date).AddMinutes(30);while((Get-Date) -lt $t -and [U.W]::FindWindow('#32770',$null) -ne [System.IntPtr]::Zero){Start-Sleep 2}`;
-  spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], { detached: true, windowsHide: true, stdio: 'ignore' }).unref();
+  const q = s => "'" + String(s).replace(/'/g, "''") + "'";
+  const isRoot = path.parse(p).root === p || /^[A-Za-z]:\\?$/.test(p);
+  const target = isRoot ? p.slice(0, 2) + '\\' : p;
+  const head = `$target = ${q(target)}; $dir = ${q(path.dirname(p))}; $name = ${q(path.basename(p))}; $isRoot = $${isRoot};\n`;
+  const enc = Buffer.from(head + PROPS_PS, 'utf16le').toString('base64');
+  const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc],
+    { detached: true, windowsHide: true, stdio: 'ignore' });
+  child.on('error', () => {}); child.unref();
   return true;
 });
 
