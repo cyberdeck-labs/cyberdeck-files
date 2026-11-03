@@ -1,0 +1,75 @@
+{
+  "name": "cyberdeck-files",
+  "productName": "Cyberdeck Files",
+  "version": "0.1.0",
+  "description": "Dateimanager im Cyberpunk-Look mit Knoten-Ansicht (Electron)",
+  "main": "src/main.js",
+  "author": "Cyberdeck Labs",
+  "license": "GPL-3.0",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "bash scripts/e2e.sh",
+    "dist:linux": "electron-builder --linux AppImage",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "at.lea.cyberdeck.files",
+    "productName": "Cyberdeck Files",
+    "artifactName": "CyberdeckFiles-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "System",
+      "icon": "build/icon.png",
+      "executableName": "cyberdeck-files",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "cyberdeck-files"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Cyberdeck Files"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "cyberdeck-labs",
+        "repo": "cyberdeck-files",
+        "releaseType": "release"
+      }
+    ],
+    "copyright": "Copyright © 2026 Cyberdeck Labs"
+  },
+  "desktopName": "cyberdeck-files.desktop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyberdeck-labs/cyberdeck-files.git"
+  }
+}

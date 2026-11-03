@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; media-src file:; frame-src file:; object-src file:">
+<title>Cyberdeck Files</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <div class="logo">CYBERDECK<span>//FILES</span></div>
+  <button id="back" title="Zurück (Alt+←)">◀</button><button id="fwd" title="Vor (Alt+→)">▶</button><button id="up" title="Übergeordneter Ordner (Backspace)">▲</button>
+  <div id="crumbs"></div>
+  <input id="search" placeholder="Suchen in diesem Ordner … (Strg+F)" spellcheck="false">
+  <div class="seg"><button id="vNodes" title="Knoten-Ansicht (Strg+1)">KNOTEN</button><button id="vList" title="Liste (Strg+2)">LISTE</button></div>
+  <button id="pvBtn" class="on" title="Vorschau ein/aus (Strg+P)">▣</button><button id="hiddenBtn" title="Versteckte Dateien (Strg+H)">.*</button>
+</header>
+<main>
+  <aside id="side">
+    <h4>FAVORITEN</h4><div id="favs"></div>
+    <h4>GERÄTE</h4><div id="devs"></div>
+    <div id="disk"></div>
+  </aside>
+  <section id="center">
+    <div id="stage"><div id="world"><svg id="wires"></svg><div id="nodes"></div></div>
+      <div class="hint">Klick: aufklappen · Doppelklick: hineinwechseln/öffnen · Rechtsklick: Menü · Ziehen: verschieben (Strg = kopieren) · Strg+Mausrad: Zoom</div></div>
+    <div id="listview" class="hidden"><div id="listhead"></div><table><thead><tr><th data-k="name">NAME</th><th data-k="size">GRÖSSE</th><th data-k="kind">TYP</th><th data-k="mtime">GEÄNDERT</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+  <aside id="preview"><h4>▸ VORSCHAU</h4><div id="pv"><div class="dim">Datei oder Ordner auswählen</div></div></aside>
+</main>
+<footer><span id="status"></span><span id="buffer"></span></footer>
+<div id="menu" class="hidden"></div>
+<div id="modal" class="hidden"><div class="box"><div id="mTitle"></div><input id="mInput" spellcheck="false"><div class="row"><button id="mOk" class="primary">OK</button><button id="mCancel">ABBRECHEN</button></div></div></div>
+<script src="renderer.js"></script>
+</body></html>
