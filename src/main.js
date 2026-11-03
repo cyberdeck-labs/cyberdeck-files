@@ -1,5 +1,6 @@
 // Cyberdeck Files – Hauptprozess: Dateisystem-Zugriff, Dateioperationen, Fenster
 const { app, BrowserWindow, ipcMain, shell, dialog, Menu, clipboard } = require('electron');
+const { execFile, spawn } = require('child_process');
 const path = require('path'), fs = require('fs'), fsp = require('fs/promises'), os = require('os');
 
 app.setName('cyberdeck-files');
@@ -136,6 +137,101 @@ ipcMain.handle('search', async (_e, root, q) => {
 ipcMain.handle('copy-path', (_e, p) => clipboard.writeText(p));
 ipcMain.handle('parent', (_e, p) => path.dirname(abs(p)));
 
+// ---------- Eigenschaften ----------
+const run = (cmd, args) => new Promise(res => execFile(cmd, args, { windowsHide: true, timeout: 15000 }, (err, out) => res(err ? null : String(out))));
+let users = null;
+function userName(uid) {
+  if (IS_WIN) return null;
+  if (!users) { users = {}; try { for (const l of fs.readFileSync('/etc/passwd', 'utf8').split('\n')) { const f = l.split(':'); if (f[2]) users[f[2]] = f[0]; } } catch {} }
+  return users[uid] ?? String(uid);
+}
+function groupName(gid) {
+  if (IS_WIN) return null;
+  try { for (const l of fs.readFileSync('/etc/group', 'utf8').split('\n')) { const f = l.split(':'); if (f[2] === String(gid)) return f[0]; } } catch {}
+  return String(gid);
+}
+async function winAttrs(p) {
+  const out = await run('attrib', [p]); if (!out) return null;
+  const flags = out.slice(0, out.toLowerCase().indexOf(p.toLowerCase().slice(0, 2))).toUpperCase();
+  return { hidden: flags.includes('H'), system: flags.includes('S'), archive: flags.includes('A'), readonly: flags.includes('R') };
+}
+const sizeJobs = new Map();
+async function dirSize(p, token) {
+  let size = 0, files = 0, dirs = 0, partial = false; const stack = [p]; const t0 = Date.now();
+  while (stack.length) {
+    if (sizeJobs.get(token) === 'stop') { partial = true; break; }
+    if (Date.now() - t0 > 60000 || files + dirs > 500000) { partial = true; break; }
+    const d = stack.pop(); let ents;
+    try { ents = await fsp.readdir(d, { withFileTypes: true }); } catch { continue; }
+    for (const e of ents) {
+      const q = path.join(d, e.name);
+      if (e.isDirectory()) { dirs++; stack.push(q); }
+      else { files++; try { size += (await fsp.lstat(q)).size; } catch {} }
+    }
+    if ((files + dirs) % 400 < ents.length && win) win.webContents.send('props-progress', { token, size, files, dirs });
+  }
+  return { size, files, dirs, partial };
+}
+ipcMain.handle('props', async (_e, p) => {
+  p = abs(p);
+  const ls = await fsp.lstat(p); let st = ls, target = null;
+  if (ls.isSymbolicLink()) { try { target = await fsp.readlink(p); st = await fsp.stat(p); } catch {} }
+  const isDir = st.isDirectory();
+  const r = { path: p, name: path.basename(p) || p, dir: isDir, kind: kind(path.basename(p), isDir), size: isDir ? null : st.size,
+    mtime: st.mtimeMs, atime: st.atimeMs, ctime: st.birthtimeMs || st.ctimeMs, link: target, mode: st.mode & 0o7777,
+    owner: userName(st.uid), group: groupName(st.gid), platform: process.platform, ext: path.extname(p).slice(1).toUpperCase() };
+  if (IS_WIN) r.attrs = await winAttrs(p); else r.attrs = { hidden: r.name.startsWith('.'), readonly: !(st.mode & 0o200) };
+  try { const d = await fsp.statfs(isDir ? p : path.dirname(p)); r.disk = { total: d.blocks * d.bsize, free: d.bavail * d.bsize }; } catch {}
+  return r;
+});
+ipcMain.handle('props-size', async (_e, p, token) => { sizeJobs.set(token, 'run'); const r = await dirSize(abs(p), token); sizeJobs.delete(token); return r; });
+ipcMain.handle('props-size-stop', (_e, token) => { if (sizeJobs.has(token)) sizeJobs.set(token, 'stop'); });
+ipcMain.handle('props-set', async (_e, p, ch) => {
+  p = abs(p);
+  if (typeof ch.mode === 'number' && !IS_WIN) await fsp.chmod(p, ch.mode & 0o7777);
+  if (typeof ch.readonly === 'boolean') {
+    if (IS_WIN) await run('attrib', [ch.readonly ? '+R' : '-R', p]);
+    else { const m = (await fsp.stat(p)).mode & 0o7777; await fsp.chmod(p, ch.readonly ? m & ~0o222 : m | 0o200); }
+  }
+  if (typeof ch.hidden === 'boolean' && IS_WIN) await run('attrib', [ch.hidden ? '+H' : '-H', p]);
+  return true;
+});
+// Windows: den echten Eigenschaften-Dialog des Explorers oeffnen
+ipcMain.handle('props-native', (_e, p) => {
+  if (!IS_WIN) return false; p = abs(p);
+  const esc = s => s.replace(/'/g, "''");
+  const ps = `$s=New-Object -ComObject Shell.Application;$f=$s.Namespace('${esc(path.dirname(p))}');$i=$f.ParseName('${esc(path.basename(p))}');$i.InvokeVerb('properties');` +
+    `Add-Type -Name W -Namespace U -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr FindWindow(string c,string t);';` +
+    `Start-Sleep 2;$t=(Get-Date).AddMinutes(30);while((Get-Date) -lt $t -and [U.W]::FindWindow('#32770',$null) -ne [System.IntPtr]::Zero){Start-Sleep 2}`;
+  spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], { detached: true, windowsHide: true, stdio: 'ignore' }).unref();
+  return true;
+});
+
+// ---------- Windows: Win+E auf Cyberdeck Files umleiten ----------
+const WINE_KEY = 'HKCU\\Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}';
+ipcMain.handle('wine-get', async () => {
+  if (!IS_WIN) return null;
+  const out = await run('reg', ['query', WINE_KEY + '\\shell\\opennewwindow\\command', '/ve']);
+  return !!(out && out.toLowerCase().includes(path.basename(process.execPath).toLowerCase()));
+});
+ipcMain.handle('wine-set', async (_e, on) => {
+  if (!IS_WIN) return null;
+  if (on) {
+    const cmd = WINE_KEY + '\\shell\\opennewwindow\\command';
+    await run('reg', ['add', cmd, '/ve', '/d', `"${process.execPath}"`, '/f']);
+    await run('reg', ['add', cmd, '/v', 'DelegateExecute', '/d', '', '/f']);
+  } else await run('reg', ['delete', WINE_KEY, '/f']);
+  return true;
+});
+ipcMain.handle('platform', () => process.platform);
+
+
+const argDir = argv => { for (const a of argv.slice(1)) { if (a.startsWith('-') || a === '.' || /\.js$/.test(a)) continue; try { const r = path.resolve(a); if (fs.existsSync(r)) return fs.statSync(r).isDirectory() ? r : path.dirname(r); } catch {} } return null; };
+if (!process.env.FILES_UIEVAL && !app.requestSingleInstanceLock()) app.exit(0);
+app.on('second-instance', (_e, argv) => {   // z. B. Win+E, wenn die App schon offen ist
+  if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus();
+  const d = argDir(argv); win.webContents.send('goto', d || null);
+});
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   win = new BrowserWindow({ width: 1400, height: 860, minWidth: 900, minHeight: 560, backgroundColor: '#06060c', title: 'Cyberdeck Files',
@@ -143,7 +239,8 @@ app.whenReady().then(() => {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, plugins: true } });
   if (process.env.FILES_SIZE) win.setContentSize(...process.env.FILES_SIZE.split('x').map(Number));
   win.on('close', () => { settings.bounds = win.getBounds(); save(); });
-  win.loadFile(path.join(__dirname, 'index.html'), process.env.FILES_START ? { query: { start: process.env.FILES_START } } : undefined);
+  const startDir = process.env.FILES_START || argDir(process.argv);
+  win.loadFile(path.join(__dirname, 'index.html'), startDir ? { query: { start: startDir } } : undefined);
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', e => e.preventDefault());
   if (process.env.FILES_UIEVAL) {   // Test-Hook (e2e)

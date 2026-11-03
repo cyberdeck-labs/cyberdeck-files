@@ -33,6 +33,13 @@ cat > "$T/ui.js" <<'EOF'
   r.search = qa('#rows tr[data-p]').some(t => t.textContent.includes('main.js'));
   q('#vNodes').click(); await w(300);
   r.disk = /SPEICHER/.test(q('#disk').textContent);
+  // Eigenschaften
+  const root = S.root, sep = fsx.sep;
+  await showProps(root + sep + 'notiz.md'); await w(400);
+  r.propsFile = /18 B/.test(q('#pBody').textContent) && !!q('#pRo');
+  q('#pRo').click(); await w(600); q('#pClose').click();
+  await showProps(root + sep + 'Bilder'); await w(1500);
+  r.propsDir = q('#pCount')?.textContent || ''; q('#pClose').click();
   return r; })()
 EOF
 FILES_PROFILE="$T/prof" FILES_START="$T/root" FILES_UIEVAL="$T/ui.js" FILES_SHOT="${SHOT:-$T/shot.png}" timeout 60 node_modules/.bin/electron . --ozone-platform=headless > "$T/out.txt" 2>&1
@@ -46,4 +53,6 @@ t("Wurzel-Knoten", r.rootNodes >= 5 && r.wires > 0); t("Aufklappen", r.expanded)
 t("+weitere bei großen Ordnern", r.more && r.moreOpened); t("Text-Vorschau", r.preview); t("Bild-Vorschau", r.imgPreview); t("Leerer Ordner", r.emptyNode);
 t("Neuer Ordner", r.mkdir && fs.existsSync(T + "/root/Neu")); t("Kopieren", r.copied && fs.existsSync(T + "/root/Neu/notiz.md") && fs.existsSync(T + "/root/notiz.md"));
 t("Umbenennen", r.renamed && fs.existsSync(T + "/root/Archiv")); t("Liste", r.listRows >= 5); t("Suche", r.search); t("Speicheranzeige", r.disk);
+t("Eigenschaften Datei", r.propsFile); t("Ordnergröße", /21 Dateien/.test(r.propsDir));
+t("Schreibschutz", (fs.statSync(T + "/root/notiz.md").mode & 0o200) === 0);
 console.log(ok + "/" + n + " bestanden"); process.exit(ok === n ? 0 : 1);' "$J" "$T"

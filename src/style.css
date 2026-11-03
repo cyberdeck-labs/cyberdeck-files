@@ -79,3 +79,22 @@ footer { height:26px; display:flex; align-items:center; justify-content:space-be
 body.nopv #preview { display:none; }
 @media (max-width:1100px) { #preview { width:240px; } #side { width:170px; } #search { width:170px; } .hint { display:none; } }
 .hint.fade { opacity:0; }
+
+/* Eigenschaften */
+#props { position:fixed; inset:0; z-index:55; background:#000a; display:flex; align-items:center; justify-content:center; }
+.pbox { width:520px; max-height:88vh; overflow:auto; background:var(--p); border:1px solid var(--c); box-shadow:0 0 30px #5ef4f833; clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%); }
+.ptitle { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:2px solid var(--r); color:var(--r); letter-spacing:3px; font-size:12px; font-weight:700; }
+.ptitle button { height:24px; min-width:24px; clip-path:none; }
+#pBody { padding:12px 16px 16px; }
+.phead { display:flex; gap:12px; align-items:center; margin-bottom:12px; } .phead .big { font-size:34px; color:var(--c); width:44px; text-align:center; }
+.phead .nm { color:#fff; font-weight:700; word-break:break-all; } .phead .ty { color:var(--d); font-size:11px; }
+.pgrid { display:grid; grid-template-columns:130px 1fr; gap:5px 12px; font-size:12px; padding:10px 0; border-top:1px solid var(--l); }
+.pgrid .k { color:var(--d); letter-spacing:1px; font-size:10.5px; padding-top:2px; } .pgrid .v { color:var(--t); word-break:break-all; user-select:text; }
+.pgrid .v.c { color:var(--c); }
+.perm { border-collapse:collapse; margin-top:4px; } .perm td, .perm th { padding:3px 10px; border:1px solid var(--l); font-size:11px; text-align:center; } .perm th { color:var(--r); position:static; cursor:default; }
+.perm td:first-child { text-align:left; color:var(--d); }
+.chk { display:flex; align-items:center; gap:8px; color:var(--t); font-size:12px; cursor:pointer; margin:4px 0; }
+.chk input, .perm input { accent-color:var(--r); width:15px; height:15px; }
+.pbar { height:5px; background:var(--l); margin-top:6px; } .pbar b { display:block; height:100%; background:var(--r); }
+.pacts { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap; }
+#winopt .chk { font-size:11px; color:var(--d); }

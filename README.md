@@ -10,6 +10,8 @@ Dateimanager im Cyberpunk-Look (Electron) für **Linux und Windows**.
 - **Vorschau**: Bilder, Text/Code, PDF, Audio, Video
 - **Dateioperationen**: neuer Ordner, umbenennen, kopieren/ausschneiden/einfügen, in den Papierkorb, Drag & Drop (Strg = kopieren)
 - **Suche** im aktuellen Ordner und darunter
+- **Eigenschaften** (Alt+Enter / Rechtsklick): Größe (bei Ordnern rekursiv), Inhalt, Datum, Besitzer, Berechtigungen (Linux, änderbar), Schreibschutz/Versteckt (Windows), Button für den echten Windows-Eigenschaften-Dialog
+- **Windows: Win+E** öffnet auf Wunsch Cyberdeck Files statt des Explorers (Schalter in der Seitenleiste, rückgängig machbar)
 - Favoriten, Laufwerke/Mounts, Speicheranzeige, versteckte Dateien ein/aus
 - Navigation: Pan (Ziehen), Zoom (Strg+Mausrad), Verlauf, Brotkrumen
 
@@ -22,6 +24,7 @@ Dateimanager im Cyberpunk-Look (Electron) für **Linux und Windows**.
 | Alt+← / Alt+→ | zurück / vor |
 | Strg+C / X / V | kopieren / ausschneiden / einfügen |
 | F2 | umbenennen |
+| Alt+Enter | Eigenschaften |
 | Entf | Papierkorb |
 | Strg+Umschalt+N | neuer Ordner |
 | Strg+F | suchen |

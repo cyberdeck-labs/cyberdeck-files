@@ -205,11 +205,12 @@ async function preview(p) {
   else if (i.text != null) body = `<pre>${esc(i.text)}${i.truncated ? '\n…' : ''}</pre>`;
   const it = itemOf(p);
   $('pv').innerHTML = `${body}<div class="name">${esc(i.name)}</div><div class="meta">${i.kind === 'dir' ? `Ordner · ${it && it.count != null ? it.count + ' Elemente' : ''}` : `${KIND[i.kind] || 'Datei'} · ${fmtSize(i.size)}`}<br>geändert ${fmtDate(i.mtime)}<br>
-    <span style="word-break:break-all">${esc(i.path)}</span></div><div class="acts"><button data-a="open">ÖFFNEN</button><button data-a="reveal">IM SYSTEM</button><button data-a="copypath">PFAD KOPIEREN</button></div>`;
+    <span style="word-break:break-all">${esc(i.path)}</span></div><div class="acts"><button data-a="open">ÖFFNEN</button><button data-a="reveal">IM SYSTEM</button><button data-a="copypath">PFAD KOPIEREN</button><button data-a="props">EIGENSCHAFTEN</button></div>`;
 }
 $('pv').addEventListener('click', e => {
   const a = e.target.dataset.a; if (!a || !S.active) return;
   if (a === 'open') { const it = itemOf(S.active); it && it.dir ? go(S.active) : fsx.open(S.active); }
+  if (a === 'props') showProps(S.active);
   if (a === 'reveal') fsx.reveal(S.active); if (a === 'copypath') fsx.copyPath(S.active);
 });
 
@@ -252,7 +253,8 @@ function menu(x, y, p) {
     it && !isRoot && ['Kopieren', 'Strg+C', () => Ops.copy('copy')], it && !isRoot && ['Ausschneiden', 'Strg+X', () => Ops.copy('move')],
     ['Einfügen' + (S.clip ? ` (${S.clip.items.length})` : ''), 'Strg+V', () => Ops.paste(it && it.dir ? p : curDir()), !S.clip], '-',
     it && !isRoot && !many && ['Umbenennen', 'F2', Ops.rename], it && ['Pfad kopieren', '', () => fsx.copyPath(p)],
-    it && !isRoot && ['In den Papierkorb', 'Entf', Ops.trash],
+    it && !isRoot && ['In den Papierkorb', 'Entf', Ops.trash], '-',
+    it && ['Eigenschaften', 'Alt+Enter', () => showProps(p)],
   ].filter(Boolean);
   $('menu').innerHTML = E.map((m, i) => m === '-' ? '<hr>' : `<div data-i="${i}" class="${m[3] ? 'off' : ''}">${m[0]}<span>${m[1]}</span></div>`).join('');
   $('menu').classList.remove('hidden');
@@ -305,6 +307,7 @@ document.addEventListener('keydown', e => {
   else if (c && e.shiftKey && k === 'n') Ops.newFolder(); else if (c && k === 'h') $('hiddenBtn').click(); else if (c && k === 'p') $('pvBtn').click();
   else if (c && k === '1') $('vNodes').click(); else if (c && k === '2') $('vList').click();
   else if (c && k === 'a') { S.sel = new Set(visible(S.cache.get(S.root) || []).map(i => i.path)); render(); }
+  else if (e.altKey && k === 'enter' && S.active) showProps(S.active);
   else if (k === 'f2') Ops.rename(); else if (k === 'delete') Ops.trash();
   else if (k === 'backspace' || (e.altKey && k === 'arrowup')) $('up').click();
   else if (e.altKey && k === 'arrowleft') $('back').click(); else if (e.altKey && k === 'arrowright') $('fwd').click();
@@ -321,3 +324,59 @@ document.addEventListener('keydown', e => {
   go(q || st.last || pl.home);
 })();
 setTimeout(() => document.querySelector('.hint')?.classList.add('fade'), 9000);
+
+// ---------- Eigenschaften ----------
+const ICON = { dir: '▣', img: '▨', pdf: '◈', audio: '♪', video: '▶', archive: '▤', app: '⚙', doc: '▦', text: '◇', file: '◇' };
+let propsToken = null, propsShow = null;
+fsx.onPropsProgress(d => { if (d.token === propsToken && propsShow) propsShow(d); });
+const fmtBytes = n => n == null ? '—' : `${fmtSize(n)}${n >= 1024 ? ` (${n.toLocaleString('de-AT')} Bytes)` : ''}`;
+const fmtLong = t => t ? new Date(t).toLocaleString('de-AT', { dateStyle: 'full', timeStyle: 'medium' }) : '—';
+async function showProps(p) {
+  if (!p || p.includes('#')) return;
+  let r; try { r = await fsx.props(p); } catch (e) { toast('Fehler: ' + e.message); return; }
+  const tok = propsToken = Math.random().toString(36).slice(2);
+  const row = (k, v, cls = '') => `<div class="k">${k}</div><div class="v ${cls}">${v}</div>`;
+  let perm = '';
+  if (r.platform !== 'win32') {
+    const bits = [['Besitzer', 6], ['Gruppe', 3], ['Andere', 0]];
+    perm = `<div class="pgrid"><div class="k">BERECHTIGUNGEN</div><div class="v"><table class="perm"><tr><th></th><th>LESEN</th><th>SCHREIBEN</th><th>${r.dir ? 'BETRETEN' : 'AUSFÜHREN'}</th></tr>
+      ${bits.map(([n, sh]) => `<tr><td>${n}</td>${[4, 2, 1].map(b => `<td><input type="checkbox" data-bit="${b << sh}" ${r.mode & (b << sh) ? 'checked' : ''}></td>`).join('')}</tr>`).join('')}</table>
+      <div class="dim" style="margin-top:4px">Modus <span id="pMode" class="c">${r.mode.toString(8).padStart(4, '0')}</span></div></div></div>`;
+  }
+  const attrs = r.platform === 'win32'
+    ? `<label class="chk"><input type="checkbox" id="pRo" ${r.attrs?.readonly ? 'checked' : ''}> Schreibgeschützt</label><label class="chk"><input type="checkbox" id="pHid" ${r.attrs?.hidden ? 'checked' : ''}> Versteckt</label>${r.attrs?.system ? '<div class="dim">Systemdatei</div>' : ''}`
+    : `<label class="chk"><input type="checkbox" id="pRo" ${r.attrs?.readonly ? 'checked' : ''}> Schreibgeschützt (für Besitzer)</label>${r.attrs?.hidden ? '<div class="dim">Versteckt (Name beginnt mit „.“)</div>' : ''}`;
+  const disk = r.disk ? (() => { const used = r.disk.total - r.disk.free, pct = Math.round(100 * used / r.disk.total);
+    return row('DATENTRÄGER', `${fmtSize(r.disk.free)} frei von ${fmtSize(r.disk.total)}<div class="pbar"><b style="width:${pct}%"></b></div>`); })() : '';
+  $('pBody').innerHTML = `<div class="phead"><div class="big">${ICON[r.kind] || '◇'}</div><div><div class="nm">${esc(r.name)}</div><div class="ty">${r.dir ? 'Ordner' : (KIND[r.kind] || 'Datei') + (r.ext ? ` (.${esc(r.ext.toLowerCase())})` : '')}${r.link ? ' · Verknüpfung' : ''}</div></div></div>
+    <div class="pgrid">${row('ORT', esc(parentOf(r.path)))}${r.link ? row('ZIEL', esc(r.link), 'c') : ''}
+      ${r.dir ? row('GRÖSSE', '<span id="pSize" class="c">wird berechnet …</span>') + row('INHALT', '<span id="pCount">…</span>') : row('GRÖSSE', fmtBytes(r.size), 'c')}
+      ${disk}</div>
+    <div class="pgrid">${row('ERSTELLT', fmtLong(r.ctime))}${row('GEÄNDERT', fmtLong(r.mtime))}${row('LETZTER ZUGRIFF', fmtLong(r.atime))}</div>
+    ${r.owner ? `<div class="pgrid">${row('BESITZER', esc(r.owner))}${row('GRUPPE', esc(r.group))}</div>` : ''}
+    ${perm}<div class="pgrid"><div class="k">ATTRIBUTE</div><div class="v">${attrs}</div></div>
+    <div class="pacts">${r.platform === 'win32' ? '<button id="pNative">WINDOWS-EIGENSCHAFTEN</button>' : ''}<button id="pCopy">PFAD KOPIEREN</button><button id="pOk" class="primary">SCHLIESSEN</button></div>`;
+  $('props').classList.remove('hidden');
+  const close = () => { $('props').classList.add('hidden'); fsx.propsSizeStop(tok); propsToken = null; };
+  $('pClose').onclick = $('pOk').onclick = close;
+  $('props').onmousedown = e => { if (e.target.id === 'props') close(); };
+  $('pCopy').onclick = () => { fsx.copyPath(r.path); toast('Pfad kopiert'); };
+  if ($('pNative')) $('pNative').onclick = () => fsx.propsNative(r.path);
+  const apply = async ch => { try { await fsx.propsSet(r.path, ch); toast('Gespeichert'); refresh([parentOf(r.path)]); } catch (e) { toast('Fehler: ' + e.message); showProps(p); } };
+  $('pRo').onchange = e => apply({ readonly: e.target.checked });
+  if ($('pHid')) $('pHid').onchange = e => apply({ hidden: e.target.checked });
+  $('pBody').querySelectorAll('[data-bit]').forEach(cb => cb.onchange = () => {
+    let m = r.mode & ~0o777; $('pBody').querySelectorAll('[data-bit]').forEach(x => { if (x.checked) m |= +x.dataset.bit; });
+    r.mode = m; $('pMode').textContent = m.toString(8).padStart(4, '0'); apply({ mode: m });
+  });
+  if (r.dir) {
+    const show = d => { if (propsToken !== tok || !$('pSize')) return; $('pSize').textContent = fmtBytes(d.size) + (d.partial ? ' (abgebrochen)' : ''); $('pCount').textContent = `${d.files.toLocaleString('de-AT')} Dateien, ${d.dirs.toLocaleString('de-AT')} Ordner`; };
+    propsShow = d => { show(d); if ($('pSize')) $('pSize').textContent += ' …'; };
+    fsx.propsSize(r.path, tok).then(show);
+  }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('props').classList.contains('hidden')) { $('pClose').click(); e.stopImmediatePropagation(); } }, true);
+fsx.onGoto(d => { if (d) go(d); });
+// Windows-Option Win+E
+fsx.wineGet().then(v => { if (v === null) return; $('winopt').classList.remove('hidden'); $('wineChk').checked = v;
+  $('wineChk').onchange = async e => { await fsx.wineSet(e.target.checked); toast(e.target.checked ? 'Win+E öffnet jetzt Cyberdeck Files' : 'Win+E öffnet wieder den Explorer'); }; });
