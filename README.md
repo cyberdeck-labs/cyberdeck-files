@@ -1,42 +1,42 @@
 # Cyberdeck Files
 
-Dateimanager im Cyberpunk-Look (Electron) für **Linux und Windows**.
+Cyberpunk-styled file manager (Electron) for **Linux and Windows**.
 
-![Knoten-Ansicht](docs/knoten.png)
+![Node view](docs/knoten.png)
 
-## Funktionen
-- **Knoten-Ansicht**: Ordner sind Knoten. Ein Klick klappt die Inhalte als neue Knoten auf, die mit Leitungen verbunden sind. Der aktive Pfad leuchtet rot. Große Ordner werden zu „+N weitere“ zusammengefasst.
-- **Listen-Ansicht** mit Sortierung (Name, Größe, Typ, Datum)
-- **Vorschau**: Bilder, Text/Code, PDF, Audio, Video
-- **Dateioperationen**: neuer Ordner, umbenennen, kopieren/ausschneiden/einfügen, in den Papierkorb, Drag & Drop (Strg = kopieren)
-- **Suche** im aktuellen Ordner und darunter
-- **Eigenschaften** (Alt+Enter / Rechtsklick): Größe (bei Ordnern rekursiv), Inhalt, Datum, Besitzer, Berechtigungen (Linux, änderbar), Schreibschutz/Versteckt (Windows), Button für den echten Windows-Eigenschaften-Dialog
-- **Windows: Win+E** öffnet auf Wunsch Cyberdeck Files statt des Explorers (Schalter in der Seitenleiste, rückgängig machbar)
-- Favoriten, Laufwerke/Mounts, Speicheranzeige, versteckte Dateien ein/aus
-- Navigation: Pan (Ziehen), Zoom (Strg+Mausrad), Verlauf, Brotkrumen
+## Features
+- **Node view**: folders are nodes. A click expands their contents as new nodes connected by wires. The active path glows red. Large folders are collapsed into "+N more".
+- **List view** with sorting (name, size, type, date)
+- **Preview**: images, text/code, PDF, audio, video
+- **File operations**: new folder, rename, copy/cut/paste, move to trash, drag & drop (Ctrl = copy)
+- **Search** in the current folder and below
+- **Properties** (Alt+Enter / right-click): size (recursive for folders), contents, dates, owner, permissions (Linux, editable), read-only/hidden (Windows), button for the native Windows properties dialog
+- **Windows: Win+E** can open Cyberdeck Files instead of Explorer (toggle in the sidebar, reversible)
+- Favorites, drives/mounts, storage usage, show/hide hidden files
+- Navigation: pan (drag), zoom (Ctrl+mouse wheel), history, breadcrumbs
 
-## Tastenkürzel
-| Taste | Aktion |
+## Shortcuts
+| Key | Action |
 |---|---|
-| Strg+1 / Strg+2 | Knoten / Liste |
-| Enter, Doppelklick | öffnen / hineinwechseln |
-| Backspace, Alt+↑ | übergeordneter Ordner |
-| Alt+← / Alt+→ | zurück / vor |
-| Strg+C / X / V | kopieren / ausschneiden / einfügen |
-| F2 | umbenennen |
-| Alt+Enter | Eigenschaften |
-| Entf | Papierkorb |
-| Strg+Umschalt+N | neuer Ordner |
-| Strg+F | suchen |
-| Strg+H | versteckte Dateien |
-| Strg+P | Vorschau ein/aus |
-| F5 | neu laden |
+| Ctrl+1 / Ctrl+2 | node / list view |
+| Enter, double-click | open / enter folder |
+| Backspace, Alt+↑ | parent folder |
+| Alt+← / Alt+→ | back / forward |
+| Ctrl+C / X / V | copy / cut / paste |
+| F2 | rename |
+| Alt+Enter | properties |
+| Del | move to trash |
+| Ctrl+Shift+N | new folder |
+| Ctrl+F | search |
+| Ctrl+H | hidden files |
+| Ctrl+P | toggle preview |
+| F5 | reload |
 
-## Entwickeln
+## Development
 ```bash
 npm install
 npm start
-npm test        # e2e (headless)
+npm test             # e2e (headless)
 npm run dist:linux   # AppImage
-npm run dist:win     # Windows-Installer
+npm run dist:win     # Windows installer
 ```
