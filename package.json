@@ -1,7 +1,7 @@
 {
   "name": "cyberdeck-files",
   "productName": "Cyberdeck Files",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Dateimanager im Cyberpunk-Look mit Knoten-Ansicht (Electron)",
   "main": "src/main.js",
   "author": "Cyberdeck Labs",
@@ -17,7 +17,7 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "electron": "^45.3.1",
+    "electron": "^45.3.2",
     "electron-builder": "^26.15.3"
   },
   "build": {
